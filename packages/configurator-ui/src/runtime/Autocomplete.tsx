@@ -30,7 +30,7 @@ export const Autocomplete = ({
 }: AutocompleteProps) => {
   const store = useConfiguratorStore();
   const queryName = name || placeholder;
-  const storedQuery = useConfiguratorState(state => state.queries[queryName] ?? "");
+  const storedQuery = useConfiguratorState(state => state.queries[queryName] ?? value ?? "");
   const [open, setOpen] = useState(false);
   // Only while open: the host reports the viewport on every frame its modal scrolls.
   const viewport = useConfiguratorState(state => open ? state.viewport : null);

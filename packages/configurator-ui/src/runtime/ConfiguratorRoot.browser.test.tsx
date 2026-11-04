@@ -419,10 +419,10 @@ describe("Autocomplete", () => {
     expect(loadOptions).toHaveBeenLastCalledWith("");
   });
 
-  it("shows a pre-filled value as typed text until it has a title", async () => {
+  it.for(["initial", "pre-filled"])("shows the %s value as typed text until it has a title", async source => {
     const spec = autocompleteSpec(folders);
     spec.initial = { folderId: "F1" };
-    await mount(spec, { folderId: "F1" });
+    await mount(spec, source === "pre-filled" ? { folderId: "F1" } : {});
     await expect.element(input()).toHaveValue("F1");
   });
 
