@@ -1449,12 +1449,14 @@ export type ObservationDescription = {
    * - Every collaborator must pass this gatekeeper's `addObserver()` to open the gadget, so a
    *   gatekeeper whose `addObserver()` always throws makes the gadget effectively unshareable
    *   once it has made one of these observations.
-   * - Once observed, the gadget enters a restricted mode: no public-web fetches, and every action
-   *   requires manual approval -- auto-approval rules are suspended. The approver is shown the
-   *   action's full `description` and is responsible for checking it contains none of the
-   *   restricted data. An action whose description is not complete
+   * - Once observed, the gadget enters a restricted mode: every action requires manual approval
+   *   -- auto-approval rules are suspended. The approver is shown the action's full `description`
+   *   and is responsible for checking it contains none of the restricted data. An action whose
+   *   description is not complete
    *   (`ActionDescription.descriptionIsComplete`) is accepted and flagged to the approver; only
    *   git pushes are refused. The kernel does not restrict which connections may be acted on.
+   * - Public-web fetches remain available without approval, so this flag does not prevent data
+   *   from being sent in a fetch URL.
    *
    * TODO(someday): The restricted mode is a blunt instrument. It should be possible to perform
    *   actions whose visibility is limited to people verified to have access to the same data: an

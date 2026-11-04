@@ -6,8 +6,14 @@ import { NetworkInterceptor } from "../src/network-interceptor.js";
 
 let harness: Harness;
 const models = scriptedModelRouter();
-// No web handler: a fetch that got past the gate would be recorded as unmocked.
-const network = new NetworkInterceptor({ handlers: [models.handler] });
+const TARGET = "https://gadgets-test.example/restricted-web-fetch";
+const PAGE = "Public documentation fetched after reading restricted data.";
+const webRequests: string[] = [];
+const network = new NetworkInterceptor({ handlers: [models.handler, (url, method) => {
+  if (url.href !== TARGET) return null;
+  webRequests.push(`${method} ${url.href}`);
+  return new Response(PAGE, { headers: { "content-type": "text/plain" } });
+}] });
 
 beforeAll(async () => {
   network.install();
@@ -23,18 +29,14 @@ afterAll(async () => {
   }
 });
 
-const TARGET = "https://gadgets-test.example/restricted-web-fetch";
-const REFUSED = "This workspace has observed sensitive data. To prevent leaks, the workspace is " +
-    "prohibited from fetching from public web sites.";
-
-it("refuses a web fetch once the workspace has read restricted data", async () => {
+it("allows a web fetch after the workspace has read restricted data", async () => {
   const model = models.script([
     { toolCall: { id: "read-restricted", name: "executeCode", arguments: {
       code: "export default async function(self, env) { " +
           "console.log(await env.TEST_AMBIENT.readValue(true)); }",
     } } },
     { toolCall: { id: "fetch-page", name: "webFetch", arguments: { url: TARGET } } },
-    { text: "The page could not be fetched." },
+    { text: "The page was fetched." },
   ]);
   await using session = await openAgentSession(harness.url, {
     modelId: SCRIPTED_MODEL_ID,
@@ -45,10 +47,16 @@ it("refuses a web fetch once the workspace has read restricted data", async () =
   const turn = await session.runTurn("Read the restricted value, then fetch the page.");
 
   expect(turn.outcome).toEqual({ status: "completed" });
+  expect(webRequests).toEqual([`GET ${TARGET}`]);
   expect(model.requests).toHaveLength(3);
   expect(model.requests[2]).toMatchObject({ messages: expect.arrayContaining([
     expect.objectContaining(
-        { role: "tool", tool_call_id: "fetch-page", content: expect.stringContaining(REFUSED) }),
+        { role: "tool", tool_call_id: "fetch-page", content: expect.stringContaining(PAGE) }),
   ]) });
+  const history = await session.listActions();
+  expect(history.entries).toContainEqual(expect.objectContaining({
+    type: "observation",
+    description: expect.objectContaining({ containsRestrictedData: true }),
+  }));
   expect(network.getUnmockedCalls()).toEqual([]);
 });
